@@ -14,32 +14,32 @@ def fetch_option_chain(symbol):
     print(f"Available expiration dates for {symbol}: {expirations}")
 
     options_data = []
-    for expiry in expirations:
-        opt_chain = ticker.option_chain(expiry)
+    for expire in expirations:
+        opt_chain = ticker.option_chain(expire)
         calls = opt_chain.calls
-        calls['expiration'] = pd.to_datetime(expiry)
+        calls['expiration'] = pd.to_datetime(expire)
         options_data.append(calls)
 
     full_calls_df = pd.concat(options_data, ignore_index=True)
     return full_calls_df
 
-def process_option_data(df, max_days_to_expiry=400):
+def process_option_data(df, max_days_to_expire=400):
     today = pd.Timestamp.now().normalize()
     df['time_to_expire'] = (df['expiration'] - today).dt.days
     df = df.dropna(subset=['strike', 'lastPrice', 'time_to_expire'])
     
-    # Filter out options that have more than 400 days to expiry
-    df = df[df['time_to_expire'] <= max_days_to_expiry]
+    # Filter out options that have more than 400 days to expire
+    df = df[df['time_to_expire'] <= max_days_to_expire]
     
     return df
 
 def create_surface_grid(df, grid_res=100):
     strike_range = (df['strike'].min(), df['strike'].max())
-    expiry_range = (df['time_to_expire'].min(), df['time_to_expire'].max())
+    expire_range = (df['time_to_expire'].min(), df['time_to_expire'].max())
 
     grid_x, grid_y = np.meshgrid(
         np.linspace(*strike_range, grid_res),
-        np.linspace(*expiry_range, grid_res)
+        np.linspace(*expire_range, grid_res)
     )
 
     points = df[['strike', 'time_to_expire']].values
@@ -118,7 +118,7 @@ def plot_option_price_vs_time(grid_x, grid_y, flow_accumulation):
     # We will plot the option price vs time with weighting based on the water flow (river channels)
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    # Sum the flow in each column to create a total weight for each strike price/time to expiry combination
+    # Sum the flow in each column to create a total weight for each strike price/time to expire combination
     strike_weights = np.sum(flow_accumulation, axis=0)  # Sum by columns (time to expiration)
     price_weights = np.sum(flow_accumulation, axis=1)  # Sum by rows (strike prices)
 
@@ -126,7 +126,7 @@ def plot_option_price_vs_time(grid_x, grid_y, flow_accumulation):
     ax.plot(grid_y[:, 0], strike_weights, label="Weighted Price for Strike Prices")
     ax.set_xlabel('Time to Expire (days)')
     ax.set_ylabel('Weighted Option Price')
-    ax.set_title('Weighted Option Price vs Time to Expiry with River Flow')
+    ax.set_title('Weighted Option Price vs Time to expire with River Flow')
 
     ax.legend()
     plt.show()
@@ -144,7 +144,7 @@ def plot_river_flow_2d(grid_x, grid_y, flow_accumulation):
     cbar.set_label("Flow Intensity (Water Accumulation)")
 
     ax.set_xlabel('Strike Price')
-    ax.set_ylabel('Time to Expiry (days)')
+    ax.set_ylabel('Time to expire (days)')
     ax.set_title('Simulated River Flow Over Option Price Surface')
 
     plt.show()
@@ -156,7 +156,7 @@ def main():
     call_options_df = fetch_option_chain(symbol)
 
     print("Processing option data...")
-    processed_df = process_option_data(call_options_df, max_days_to_expiry=300)  # Filtering to 400 days
+    processed_df = process_option_data(call_options_df, max_days_to_expire=300)  # Filtering to 400 days
 
     print("Creating surface grid...")
     grid_x, grid_y, grid_z = create_surface_grid(processed_df, grid_res=100)
