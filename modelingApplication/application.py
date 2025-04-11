@@ -1,7 +1,14 @@
+#!/Users/ryandubrueler/py-env/bin
+# virt env - python3 -m venv rain-env
+# run env - source rain-env/bin/activate
+# pip install yfinance scipy numpy pandas matplotlib tkinter
 #!/usr/bin/env python
 import yfinance as yf
 import numpy as np
 import pandas as pd
+import matplotlib
+# Explicitly set the backend to TkAgg
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.interpolate import griddata, RectBivariateSpline
@@ -10,7 +17,8 @@ from scipy.ndimage import gaussian_filter, gaussian_filter1d
 # Additional imports for the GUI
 import tkinter as tk
 from tkinter import ttk, messagebox
-import threading
+# Removed threading for now to avoid GUI calls from a non-main thread
+# import threading
 
 ########################################
 # MODEL 1: GBM Forecasting
@@ -43,25 +51,20 @@ def model_gbm(symbol):
         simulation[:, 0] = S0
         for sim in range(n_sim):
             for t in range(1, forecast_horizon + 1):
-                epsilon = np.random.normal()  # standard normal shock
+                epsilon = np.random.normal()
                 simulation[sim, t] = simulation[sim, t-1] * np.exp((mu - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * epsilon)
         forecast_time = np.arange(forecast_horizon + 1)
         return simulation, forecast_time
 
     def plot_underlying_forecast(hist_df, simulation, forecast_time, symbol):
-        # Plot historical underlying prices along with simulated future price paths.
         plt.figure(figsize=(12, 8))
         plt.plot(hist_df['Date'], hist_df['Close'], label='Historical Price', lw=2)
-        # Prepare forecast dates
         last_date = hist_df['Date'].iloc[-1]
-        forecast_dates = pd.date_range(last_date, periods=len(forecast_time), freq='B')  # business days
-        # Plot each simulation in light gray.
+        forecast_dates = pd.date_range(last_date, periods=len(forecast_time), freq='B')
         for path in simulation:
             plt.plot(forecast_dates, path, color='black', alpha=0.3)
-        # Plot the mean forecast path.
         mean_path = simulation.mean(axis=0)
         plt.plot(forecast_dates, mean_path, color='blue', lw=2, label='Mean Forecast')
-        # Add confidence interval shading.
         lower_bound = np.percentile(simulation, 5, axis=0)
         upper_bound = np.percentile(simulation, 95, axis=0)
         plt.fill_between(forecast_dates, lower_bound, upper_bound, color='grey', alpha=0.4, label='5-95% Confidence Interval')
@@ -72,10 +75,8 @@ def model_gbm(symbol):
         plt.grid(True)
         plt.show()
 
-    # Execution of Model 1:
     forecast_horizon = 30  # days to forecast
     n_sim = 50  # simulation paths
-
     hist_df = fetch_underlying_price(symbol, period="1y", interval="1d")
     mu, sigma = estimate_gbm_parameters(hist_df)
     S0 = hist_df['Close'].iloc[-1]
@@ -124,7 +125,6 @@ def model_river(symbol):
         return grid_x, grid_y, grid_z
 
     def simulate_rain_and_flow(grid_x, grid_y, grid_z, smoothing=2.0, scale_factor=5.0, rain_fraction=0.1):
-        # Create a heightmap with smoothing.
         heightmap = gaussian_filter(grid_z, sigma=smoothing)
         grad_y, grad_x = np.gradient(-heightmap)
         water_flow = np.zeros_like(heightmap)
@@ -149,8 +149,10 @@ def model_river(symbol):
         ax = fig.add_subplot(111, projection='3d')
         surface_colors = plt.cm.viridis((grid_z - np.min(grid_z)) / (np.max(grid_z) - np.min(grid_z)))
         flow_colors = plt.cm.Blues(flow_accumulation)
-        ax.plot_surface(grid_x, grid_y, grid_z, facecolors=surface_colors, rstride=1, cstride=1, antialiased=True)
-        ax.plot_surface(grid_x, grid_y, grid_z, facecolors=flow_colors, rstride=1, cstride=1, alpha=0.5, antialiased=False)
+        ax.plot_surface(grid_x, grid_y, grid_z, facecolors=surface_colors,
+                        rstride=1, cstride=1, antialiased=True)
+        ax.plot_surface(grid_x, grid_y, grid_z, facecolors=flow_colors,
+                        rstride=1, cstride=1, alpha=0.5, antialiased=False)
         ax.set_xlabel('Underlying Price (USD)')
         ax.set_ylabel('Time to Expire (days)')
         ax.set_zlabel('Call Option Price (USD)')
@@ -182,7 +184,8 @@ def model_river(symbol):
         fig, ax = plt.subplots(figsize=(12, 8))
         cp = ax.contourf(grid_x, grid_y, grid_z, cmap='viridis', levels=50)
         plt.colorbar(cp, ax=ax, label='Call Option Price (USD)')
-        ax.plot(descent_path[:, 0], descent_path[:, 1], marker='o', color='red', linewidth=2, markersize=4)
+        ax.plot(descent_path[:, 0], descent_path[:, 1], marker='o', color='red',
+                linewidth=2, markersize=4)
         ax.set_xlabel('Underlying Price (USD)')
         ax.set_ylabel('Time to Expire (days)')
         ax.set_title(f'Stochastic Gradient Descent Path on the Option Price Manifold for {symbol}')
@@ -222,14 +225,14 @@ def model_river(symbol):
         for i in range(n_sim):
             plt.plot(forecast_time, price_paths[i, :], color='black', alpha=0.3)
         plt.plot(forecast_time, mean_price, color='blue', lw=2, label='Mean Forecast')
-        plt.fill_between(forecast_time, lower_bound, upper_bound, color='grey', alpha=0.6, label='5-95% Confidence Interval')
+        plt.fill_between(forecast_time, lower_bound, upper_bound, color='grey', alpha=0.6,
+                         label='5-95% Confidence Interval')
         plt.xlabel('Forecast Time, T (days)')
         plt.ylabel('Asset Price, S (USD)')
         plt.title(f'Forecast of Future Asset Price Dynamics Based on Option Price Surface for {symbol}')
         plt.legend()
         plt.show()
 
-    # Execution of Model 2:
     call_options_df = fetch_option_chain(symbol)
     processed_df = process_option_data(call_options_df, max_days_to_expire=200)
     grid_x, grid_y, grid_z = create_surface_grid(processed_df, grid_res=100)
@@ -291,8 +294,8 @@ def model_shock(symbol):
         grid_z[np.isnan(grid_z)] = np.nanmean(grid_z)
         return grid_x, grid_y, grid_z
 
-    def simulate_shock_and_spread(grid_x, grid_y, grid_z, smoothing=2.0, scale_factor=5.0, shock_fraction=0.1, iterations=500):
-        # Simulate shock events on the option price surface.
+    def simulate_shock_and_spread(grid_x, grid_y, grid_z, smoothing=2.0, scale_factor=5.0,
+                                  shock_fraction=0.1, iterations=500):
         heightmap = gaussian_filter(grid_z, sigma=smoothing)
         shock_field = np.zeros_like(heightmap)
         num_shock_points = int(shock_field.size * shock_fraction)
@@ -308,8 +311,10 @@ def model_shock(symbol):
         ax = fig.add_subplot(111, projection='3d')
         surface_colors = plt.cm.viridis((grid_z - grid_z.min()) / (grid_z.max() - grid_z.min()))
         shock_colors = plt.cm.Reds(shock_field / shock_field.max())
-        ax.plot_surface(grid_x, grid_y, grid_z, facecolors=surface_colors, rstride=1, cstride=1, antialiased=True)
-        ax.plot_surface(grid_x, grid_y, grid_z, facecolors=shock_colors, rstride=1, cstride=1, alpha=0.5, antialiased=False)
+        ax.plot_surface(grid_x, grid_y, grid_z, facecolors=surface_colors,
+                        rstride=1, cstride=1, antialiased=True)
+        ax.plot_surface(grid_x, grid_y, grid_z, facecolors=shock_colors,
+                        rstride=1, cstride=1, alpha=0.5, antialiased=False)
         cp = ax.contourf(grid_x, grid_y, grid_z, cmap='Reds', levels=100)
         plt.colorbar(cp, ax=ax, label='Shock Field Strength')
         ax.set_xlabel('Underlying Price (USD)')
@@ -319,7 +324,8 @@ def model_shock(symbol):
         plt.show()
 
     def stochastic_gradient_descent_shock(grid_x, grid_y, grid_z, shock_field, start_point,
-                                            learning_rate=0.1, noise_scale=0.02, iterations=100, iteration_time_unit=1):
+                                            learning_rate=0.1, noise_scale=0.02, iterations=100,
+                                            iteration_time_unit=1):
         dz_dy, dz_dx = np.gradient(grid_z)
         x_vals = grid_x[0, :]
         y_vals = grid_y[:, 0]
@@ -343,7 +349,8 @@ def model_shock(symbol):
         fig, ax = plt.subplots(figsize=(12, 8))
         cp = ax.contourf(grid_x, grid_y, grid_z, cmap='viridis', levels=100)
         plt.colorbar(cp, ax=ax, label='Call Option Price (USD)')
-        ax.plot(descent_path[:, 0], descent_path[:, 1], marker='o', color='red', linewidth=2, markersize=4)
+        ax.plot(descent_path[:, 0], descent_path[:, 1], marker='o', color='red',
+                linewidth=2, markersize=4)
         ax.set_xlabel('Underlying Price (USD)')
         ax.set_ylabel('Time to Expire (days)')
         ax.set_title(f'Stochastic Gradient Descent Path on the Option Price Manifold for {symbol}')
@@ -383,14 +390,14 @@ def model_shock(symbol):
         for i in range(n_sim):
             plt.plot(forecast_time, price_paths[i, :], color='black', alpha=0.3)
         plt.plot(forecast_time, mean_price, color='blue', lw=2, label='Mean Forecast')
-        plt.fill_between(forecast_time, lower_bound, upper_bound, color='grey', alpha=0.6, label='5-95% Confidence Interval')
+        plt.fill_between(forecast_time, lower_bound, upper_bound, color='grey', alpha=0.6,
+                         label='5-95% Confidence Interval')
         plt.xlabel('Forecast Time (days)')
         plt.ylabel('Asset Price (USD)')
         plt.title(f'Forecast of Future Asset Price Dynamics for {symbol}')
         plt.legend()
         plt.show()
 
-    # Execution of Model 3:
     call_options_df = fetch_option_chain(symbol)
     processed_df = process_option_data(call_options_df, max_days_to_expire=200)
     grid_x, grid_y, grid_z = create_surface_grid(processed_df, grid_res=100)
@@ -422,20 +429,18 @@ def run_forecasting_model():
         messagebox.showerror("Input Error", "Please enter a ticker symbol.")
         return
 
-    # Run the selected model in a separate thread so that the GUI remains responsive.
-    def run_model():
-        try:
-            if model_choice == "GBM":
-                model_gbm(symbol)
-            elif model_choice == "River":
-                model_river(symbol)
-            elif model_choice == "Shock":
-                model_shock(symbol)
-            else:
-                messagebox.showerror("Selection Error", "Please select a valid forecasting model.")
-        except Exception as ex:
-            messagebox.showerror("Error", str(ex))
-    threading.Thread(target=run_model).start()
+    # NOTE: To avoid NSWindow errors, we run the full model on the main thread.
+    try:
+        if model_choice == "GBM":
+            model_gbm(symbol)
+        elif model_choice == "River":
+            model_river(symbol)
+        elif model_choice == "Shock":
+            model_shock(symbol)
+        else:
+            messagebox.showerror("Selection Error", "Please select a valid forecasting model.")
+    except Exception as ex:
+        messagebox.showerror("Error", str(ex))
 
 # Create the main GUI window.
 root = tk.Tk()
@@ -447,9 +452,12 @@ frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
 ttk.Label(frame, text="Select Forecasting Model:").grid(row=0, column=0, sticky=tk.W)
 model_var = tk.StringVar(value="GBM")
-ttk.Radiobutton(frame, text="Underlying Price Forecast (Gas Diffusion/GBM)", variable=model_var, value="GBM").grid(row=1, column=0, sticky=tk.W)
-ttk.Radiobutton(frame, text="Option Surface Forecast (Rainfall & River Flow)", variable=model_var, value="River").grid(row=2, column=0, sticky=tk.W)
-ttk.Radiobutton(frame, text="Option Surface Forecast (Shock Events)", variable=model_var, value="Shock").grid(row=3, column=0, sticky=tk.W)
+ttk.Radiobutton(frame, text="Underlying Price Forecast (Gas Diffusion/GBM)",
+                variable=model_var, value="GBM").grid(row=1, column=0, sticky=tk.W)
+ttk.Radiobutton(frame, text="Option Surface Forecast (Rainfall & River Flow)",
+                variable=model_var, value="River").grid(row=2, column=0, sticky=tk.W)
+ttk.Radiobutton(frame, text="Option Surface Forecast (Shock Events)",
+                variable=model_var, value="Shock").grid(row=3, column=0, sticky=tk.W)
 
 # Ticker symbol entry
 ttk.Label(frame, text="Ticker Symbol:").grid(row=4, column=0, sticky=tk.W, pady=(10, 0))
