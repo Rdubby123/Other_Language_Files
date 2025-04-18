@@ -14,13 +14,7 @@ INTERVAL      = '1d'
 DATA_END      = datetime.now().strftime('%Y-%m-%d')  
 
 # ───── FETCH HISTORICAL DATA ─────
-df = yf.download(
-    SYMBOL,
-    start=DATA_START,
-    end=DATA_END,
-    interval=INTERVAL,
-    progress=False
-)
+df = yf.download(SYMBOL,start=DATA_START,end=DATA_END,interval=INTERVAL,progress=False)
 prices = df['Close'].values
 dates  = df.index
 n      = len(prices)
