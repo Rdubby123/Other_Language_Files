@@ -5,21 +5,24 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import datetime, timedelta
 
-# ───── GLOBAL CONFIGURATION ─────
+# * GLOBAL CONFIGURATION *
 SYMBOL        = 'SPY'
 DATA_START    = '2024-04-18'
-FORECAST_DAYS = 30
+FORECAST_DAYS = 100
 INTERVAL      = '1d'
 # always ends today
 DATA_END      = datetime.now().strftime('%Y-%m-%d')  
 
-# ───── FETCH HISTORICAL DATA ─────
+# * NUMBER OF FORECAST SINUSOIDS  
+numSine = 10
+
+# * FETCH HISTORICAL DATA *
 df = yf.download(SYMBOL,start=DATA_START,end=DATA_END,interval=INTERVAL,progress=False)
 prices = df['Close'].values
 dates  = df.index
 n      = len(prices)
 
-# ───── FFT ON HISTORICAL SERIES ─────
+# * FFT ON HISTORICAL SERIES *
 X      = np.fft.fft(prices)
 freqs  = np.fft.fftfreq(n, d=1)
 mask   = freqs >= 0
@@ -28,7 +31,7 @@ X_pos     = X[mask]
 ampl      = 2 * np.abs(X_pos) / n
 phase     = np.angle(X_pos)
 
-# ───── FUTURE DATES & TIME VECTOR ─────
+# * FUTURE DATES & TIME VECTOR *
 # Forecast starts the day after the last historical date
 start_forecast = dates[-1] + timedelta(days=1)
 future_dates   = pd.date_range(start=start_forecast,
@@ -36,9 +39,7 @@ future_dates   = pd.date_range(start=start_forecast,
                                freq='D')
 t_future       = np.arange(n, n + FORECAST_DAYS)
 
-# ───── NUMBER OF FORECAST SINUSOIDS ─────
-numSine = 10
-
+# * PLOTTING *
 fig, ax = plt.subplots(figsize=(13, 6))
 # sin(0) = 0, sin(date)=0, we can make a sum of sinusoids
 all_y_future = np.zeros((numSine, FORECAST_DAYS)) 
@@ -58,7 +59,7 @@ if ampFlag:
 avg_y_future = np.sum(all_y_future, axis=0)
 ax.plot(future_dates, avg_y_future, color='black', linestyle='--', linewidth=2,label='Sum of Sinusoids')
 
-# ───── FORMAT DATE AXIS ─────
+# * FORMAT DATE AXIS *
 locator   = mdates.AutoDateLocator()
 formatter = mdates.ConciseDateFormatter(locator)
 ax.xaxis.set_major_locator(locator)
