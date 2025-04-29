@@ -1,5 +1,3 @@
 streamlit==1.24.1
 yfinance
 plotly
-pandas>=2.0
-pandas-ta
