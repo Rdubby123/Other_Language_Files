@@ -1,0 +1,4 @@
+libgeos-dev
+python3-dev
+build-essential
+cmake
