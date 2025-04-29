@@ -1,4 +1,6 @@
-libgeos-dev
-python3-dev
-build-essential
-cmake
+build-essential       # GCC, make, etc.
+python3-dev           # Python headers
+libjpeg-dev           # JPEG support for Pillow :contentReference[oaicite:2]{index=2}
+zlib1g-dev            # PNG support
+libtiff5-dev          # TIFF support
+libopenjp2-7-dev      # JPEG 2000 support
